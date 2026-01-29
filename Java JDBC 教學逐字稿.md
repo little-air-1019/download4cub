@@ -511,23 +511,156 @@ public class JdbcDemo {
 
 ## 課後練習
 
-1. QueryByPK
-建立一類別 QueryByPK.java
-使用 prepareStatement 從 STUDENT.CARS 查詢製造商為 Toyota，型號為 R8 的車款
-補充：製造商（MANUFACTURER）、型號（TYPE）、售價（PRICE）、底價（MIN_PRICE）
-查出該筆資料的所有欄位，包成 Map
-取得 Map 的值以 StringBuilder 串接
-並依下列格式印出：
-製造商：Toyota，型號：R8，售價：$200.0，底價：$100.0
+### 練習一：QueryByPK
 
-2. QueryByManufacturer
-建立一類別 QueryByManufacturer.java
-使用 prepareStatement從 STUDENT.CARS 查詢製造商為 Toyota 的所有車輛
-查出所有欄位後包裝成 List<Map>
-將查出的每一筆資料用 StringBuilder 串接，印出每一筆資料的
-製造商：？？？，型號：？？？，售價：？？？，底價：？？？，售價高於底價：？？？
-結果如下：
+建立一個類別 `QueryByPK.java`，完成以下需求：
+
+1. 使用 `PreparedStatement` 從 `STUDENT.CARS` 資料表查詢製造商為 **Toyota**，型號為 **R8** 的車款
+2. 查出該筆資料的所有欄位，包裝成 `Map`
+3. 取得 `Map` 的值，以 `StringBuilder` 串接
+4. 依下列格式印出結果
+
+**資料表欄位說明：**
+- 製造商（MANUFACTURER）
+- 型號（TYPE）
+- 售價（PRICE）
+- 底價（MIN_PRICE）
+
+**預期輸出：**
+```
+製造商：Toyota，型號：R8，售價：$200.0，底價：$100.0
+```
+
+---
+
+### 練習二：QueryByManufacturer
+
+建立一個類別 `QueryByManufacturer.java`，完成以下需求：
+
+1. 使用 `PreparedStatement` 從 `STUDENT.CARS` 資料表查詢製造商為 **Toyota** 的所有車輛
+2. 查出所有欄位後，包裝成 `List<Map>`
+3. 將查出的每一筆資料用 `StringBuilder` 串接，印出每一筆資料的製造商、型號、售價、底價，以及「售價高於底價」的差額
+
+**預期輸出：**
+```
 製造商：Toyota，型號：A1，售價：500，底價：350，售價高於底價：150
 製造商：Toyota，型號：B3，售價：650，底價：500，售價高於底價：150
 製造商：Toyota，型號：R8，售價：200，底價：100，售價高於底價：100
 製造商：Toyota，型號：R9，售價：1500，底價：1000，售價高於底價：500
+```
+
+---
+
+## 第九章：JNDI 簡介
+
+最後，我們來介紹一個在企業應用中很重要的概念：**JNDI**。
+
+### 什麼是 JNDI？
+
+JNDI 的全名是 **Java Naming and Directory Interface**，是 Java 提供的一個 API，主要用於存取命名和目錄服務。
+
+聽起來有點抽象對吧？讓我用一個比喻來說明。
+
+大家有沒有用過電話簿？當我們要打電話給某個人的時候，我們不需要記住他的電話號碼，只要在電話簿裡面用名字查詢，就可以找到對應的號碼。JNDI 就是類似的概念——我們可以用一個「名稱」來查詢對應的「資源」。
+
+### 為什麼需要 JNDI？
+
+在前面的範例中，我們把資料庫的連線資訊（URL、帳號、密碼）直接寫在程式碼裡面。這樣做有幾個問題：
+
+**第一，安全性問題。** 把帳號密碼寫在程式碼中，如果程式碼外洩，資料庫的存取權限也跟著外洩了。
+
+**第二，維護困難。** 如果資料庫的連線資訊改變了（例如換了伺服器、改了密碼），我們就要去修改程式碼，然後重新編譯、重新部署。
+
+**第三，資源管理問題。** 一個伺服器底下可能運行多個 Web 專案，每個專案可能需要存取不同的資源，例如不同的資料庫。如果每個專案都各自管理連線，會很混亂。
+
+### JNDI 如何解決這些問題？
+
+在 Java EE（現在叫 Jakarta EE）的架構下，我們會這樣做：
+
+1. 把資料庫的連線資訊設定在**伺服器**中，建立一個 **DataSource**
+2. 給這個 DataSource 一個**名稱**（JNDI Name）
+3. 程式中透過 JNDI 名稱來查詢並取得連線
+
+這樣一來，程式碼裡面就不會出現任何敏感資訊，只有一個名稱而已。連線的細節都由伺服器管理，更安全也更容易維護。
+
+### JNDI 的使用方式
+
+以 Tomcat 伺服器為例，我們需要做兩件事：
+
+**第一步：在伺服器設定 DataSource**
+
+在 Tomcat 的 `context.xml` 或 `server.xml` 中設定資源：
+
+```xml
+<Resource name="jdbc/MyDB"
+          auth="Container"
+          type="javax.sql.DataSource"
+          driverClassName="com.mysql.cj.jdbc.Driver"
+          url="jdbc:mysql://localhost:3306/mydb"
+          username="root"
+          password="password"
+          maxTotal="20"
+          maxIdle="10"
+          maxWaitMillis="10000"/>
+```
+
+**第二步：在程式中透過 JNDI 取得連線**
+
+```java
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.sql.DataSource;
+import java.sql.Connection;
+
+public class JndiExample {
+    
+    public Connection getConnection() throws Exception {
+        // 建立 JNDI 初始化上下文
+        Context initContext = new InitialContext();
+        
+        // 查詢環境上下文
+        Context envContext = (Context) initContext.lookup("java:/comp/env");
+        
+        // 用 JNDI 名稱取得 DataSource
+        DataSource ds = (DataSource) envContext.lookup("jdbc/MyDB");
+        
+        // 從 DataSource 取得連線
+        return ds.getConnection();
+    }
+}
+```
+
+可以看到，程式碼中完全沒有出現資料庫的 URL、帳號、密碼，只有一個 JNDI 名稱 `jdbc/MyDB`。
+
+### JNDI 的好處
+
+使用 JNDI 有以下幾個優點：
+
+1. **安全性提升**：敏感資訊不會出現在程式碼中
+2. **維護更容易**：連線資訊改變時，只需要修改伺服器設定，不需要改程式
+3. **連線池管理**：DataSource 通常會內建連線池（Connection Pool），可以重複使用連線，效能更好
+4. **統一管理**：所有資源都在伺服器端統一管理，方便運維
+
+在實際的企業專案中，我們幾乎都會使用 JNDI 來管理資料庫連線，這是一個很重要的觀念，請大家一定要掌握。
+
+---
+
+## 重點整理
+
+1. **JDBC** 是 Java 連接資料庫的標準 API，讓我們可以用同一套程式碼操作不同的資料庫
+
+2. **使用 Maven** 管理相依套件，不要再手動下載 JAR 檔了
+
+3. JDBC 操作的四個步驟：取得連線 → 寫入 SQL → 執行 SQL → 關閉資源
+
+4. Java 17 環境下，**Driver 會自動載入**，不需要再寫 `Class.forName()`
+
+5. **優先使用 PreparedStatement**，可以防止 SQL Injection，效能也比較好
+
+6. **務必關閉資源**，優先使用 **try-with-resources** 語法
+
+7. 取值的欄位索引從 **1** 開始，不是 0
+
+8. **企業應用中使用 JNDI** 管理資料庫連線，更安全、更易維護
+
+---
