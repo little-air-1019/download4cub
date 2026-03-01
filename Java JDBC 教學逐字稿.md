@@ -1,4 +1,4 @@
-# JDBC 教學講義（Java 17 版）
+# Java JDBC 教學逐字稿
 
 ---
 
